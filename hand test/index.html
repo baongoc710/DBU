@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Hand Tracking Test</title>
+
+    <link
+        rel="stylesheet"
+        href="./style.css"
+    >
+</head>
+<body>
+
+    <div class="app">
+
+        <header class="header">
+            <div>
+                <h1>HAND TRACKING TEST</h1>
+                <p>Vietnamese Sign Language Recognition</p>
+            </div>
+
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span id="status">
+                    Đang tải Hand Tracking...
+                </span>
+            </div>
+        </header>
+
+
+        <!-- ============================= -->
+        <!-- KHU VỰC TEST CHÍNH -->
+        <!-- ============================= -->
+
+        <main class="test-area">
+
+            <!-- CAMERA -->
+            <section class="camera-card">
+
+                <div class="card-title">
+                    <span>CAMERA</span>
+                    <span class="live-badge">LIVE</span>
+                </div>
+
+                <div class="camera-wrapper">
+
+                    <video
+                        id="webcam"
+                        autoplay
+                        playsinline>
+                    </video>
+
+                    <canvas
+                        id="output">
+                    </canvas>
+
+                </div>
+
+            </section>
+
+
+            <!-- KẾT QUẢ -->
+            <section class="result-card">
+
+                <p class="section-label">
+                    NHẬN DIỆN KÝ HIỆU
+                </p>
+
+
+                <div class="gesture-box">
+
+                    <span class="gesture-label">
+                        Ký hiệu
+                    </span>
+
+                    <span id="gesture">
+                        ?
+                    </span>
+
+                </div>
+
+
+                <div class="confidence-box">
+
+                    <span>Độ tin cậy</span>
+
+                    <strong id="confidence">
+                        0%
+                    </strong>
+
+                </div>
+
+
+                <div class="divider"></div>
+
+
+                <div
+                    id="handInfo"
+                    class="hand-info">
+
+                    Chưa phát hiện bàn tay
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <!-- ============================= -->
+        <!-- MODEL -->
+        <!-- ============================= -->
+
+        <section class="control-card">
+
+            <div class="control-header">
+
+                <div>
+                    <p class="section-label">
+                        MODEL & DATASET
+                    </p>
+
+                    <h2>
+                        Dữ liệu huấn luyện
+                    </h2>
+                </div>
+
+
+                <p
+                    id="dataInfo"
+                    class="data-info">
+
+                    A: 0 mẫu |
+                    B: 0 mẫu |
+                    C: 0 mẫu |
+                    D: 0 mẫu |
+                    E: 0 mẫu |
+                    F: 0 mẫu |
+
+                </p>
+
+            </div>
+
+
+            <div class="controls">
+
+                <div class="control-group">
+
+                    <span class="control-label">
+                        Thu thập dữ liệu
+                    </span>
+
+                    <div class="button-row">
+
+                        <button id="collectA">
+                            Thu thập A
+                        </button>
+
+                        <button id="collectB">
+                            Thu thập B
+                        </button>
+
+                        <button id="collectC">
+                            Thu thập C
+                        </button>
+                        
+                        <button id="collectD">
+                            Thu thập D
+                        </button>
+
+                        <button id="collectE">
+                            Thu thập E
+                        </button>
+
+                        <button id="collectF">
+                            Thu thập F
+                        </button>
+                        
+
+                    </div>
+
+                </div>
+
+
+                <div class="control-group">
+
+                    <span class="control-label">
+                        Dataset
+                    </span>
+
+                    <input
+                        type="file"
+                        id="loadDataset"
+                        accept=".json">
+
+                </div>
+
+
+                <div class="control-group">
+
+                    <span class="control-label">
+                        Machine Learning
+                    </span>
+
+                    <div class="button-row">
+
+                        <button
+                            id="trainModel"
+                            class="primary-button">
+
+                            Huấn luyện model
+
+                        </button>
+
+                        <button id="saveData">
+                            Lưu dữ liệu
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <p
+                id="trainStatus"
+                class="train-status">
+
+                Chưa tải dataset
+
+            </p>
+
+        </section>
+
+    </div>
+
+
+    <!-- TensorFlow -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+
+    <!-- Hand Tracking -->
+    <script
+        type="module"
+        src="hand.js">
+    </script>
+
+</body>
+
+</html>
