@@ -1,514 +1,376 @@
-const config = {
-    type: Phaser.AUTO,
-
-    width: 1000,
-    height: 600,
-
-    parent: "game-container",
-
-    backgroundColor: "#222222",
-
-    physics: {
-        default: "arcade",
-
-        arcade: {
-            gravity: {
-                y: 1300
-            },
-
-            debug: false
-        }
-    },
-
-    scene: {
-        create: create,
-        update: update
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Distance Between Us</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #f8eef4;
+      color: #53465b;
+      font-family: "Trebuchet MS", Arial, sans-serif;
     }
+    #game-shell { width: min(100%, 1000px); }
+    #game-container {
+      width: 100%;
+      overflow: hidden;
+      border: 4px solid #fffafd;
+      border-radius: 22px;
+      box-shadow: 0 18px 50px #78617a2b;
+    }
+    #game-container canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .help {
+      margin: 12px 4px 0;
+      text-align: center;
+      color: #786b7e;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main id="game-shell">
+    <div id="game-container"></div>
+    <p class="help">← → di chuyển · Space để nhảy · Né chướng ngại vật để ghi điểm</p>
+  </main>
+
+<script>
+const WIDTH = 1000;
+const HEIGHT = 600;
+
+const COLORS = {
+  sky: 0xF8EEF4,
+  ground: 0xB8D8C0,
+  groundTop: 0x8FBEA0,
+  player: 0xF4AFC0,
+  playerOutline: 0xD982A0,
+  obstacle: 0xF2A979,
+  obstacleTwo: 0xF5CB75,
+  platform: 0xB8A1D9,
+  platformHighlight: 0xD8C9EC,
+  ink: 0x594C65,
+  muted: 0x806F89,
+  panel: 0xFFFAFD,
+  accent: 0xA78BC8
 };
 
-const game = new Phaser.Game(config);
 let gameOver = false;
 
+function getObstacleSpeed(level) {
+  if (level === 1) return 300;
+  if (level === 2) return 320;
+  if (level <= 7) return 350;
+  if (level === 8) return 360;
+  if (level === 9) return 375;
+  return 400;
+}
 
-// =========================
-// CREATE
-// =========================
+const config = {
+  type: Phaser.AUTO,
+  width: WIDTH,
+  height: HEIGHT,
+  parent: "game-container",
+  backgroundColor: COLORS.sky,
+  physics: {
+    default: "arcade",
+    arcade: {
+      gravity: { y: 1300 },
+      debug: false
+    }
+  },
+  scene: {
+    create,
+    update
+  }
+};
+
+new Phaser.Game(config);
 
 function create() {
+  gameOver = false;
+  this.physics.world.resume();
 
-    // MẶT ĐẤT
-    const ground = this.add.rectangle(
-        500,
-        550,
-        1000,
-        100,
-        0x444444
-    );
+  // Trang trí nền
+  this.add.circle(850, 95, 52, 0xF7DCE6, 0.78);
+  this.add.circle(850, 95, 37, 0xFFF4D6, 0.95);
+  this.add.ellipse(165, 115, 170, 44, 0xFFFFFF, 0.58);
+  this.add.ellipse(205, 105, 90, 38, 0xFFFFFF, 0.58);
+  this.add.ellipse(690, 185, 135, 34, 0xFFFFFF, 0.38);
 
-    this.physics.add.existing(
-        ground,
-        true
-    );
+  // Tiêu đề game
+  this.add.text(WIDTH / 2, 24, "DISTANCE BETWEEN US", {
+    fontFamily: "Trebuchet MS, Arial, sans-serif",
+    fontSize: "27px",
+    fontStyle: "bold",
+    color: "#594C65",
+    letterSpacing: 2
+  }).setOrigin(0.5, 0);
 
+  this.add.text(WIDTH / 2, 58, "A little journey, one step at a time", {
+    fontFamily: "Trebuchet MS, Arial, sans-serif",
+    fontSize: "14px",
+    color: "#806F89",
+    letterSpacing: 1
+  }).setOrigin(0.5, 0);
 
-    // NHÂN VẬT
-    this.player = this.add.rectangle(
-        200,
-        450,
-        50,
-        50,
-        0x00ff00
-    );
+  // Mặt đất
+  const ground = this.add.rectangle(500, 550, 1000, 100, COLORS.ground);
+  this.physics.add.existing(ground, true);
+  this.add.rectangle(500, 501, 1000, 5, COLORS.groundTop).setDepth(1);
 
-    this.physics.add.existing(
-        this.player
-    );
+  // Nhân vật
+  this.player = this.add.rectangle(200, 450, 50, 50, COLORS.player);
+  this.player.setStrokeStyle(3, COLORS.playerOutline);
+  this.physics.add.existing(this.player);
+  this.player.body.setCollideWorldBounds(true);
+  this.physics.add.collider(this.player, ground);
 
+  // Bục di chuyển, bắt đầu ẩn và xuất hiện từ level 3
+  this.platform = this.add.rectangle(700, 400, 180, 30, COLORS.platform);
+  this.platform.setStrokeStyle(3, COLORS.platformHighlight);
+  this.physics.add.existing(this.platform);
+  this.platform.body.setAllowGravity(false);
+  this.platform.setVisible(false);
+  this.platform.body.enable = false;
+  this.physics.add.collider(this.player, this.platform);
+  this.platformActive = false;
 
-    // VA CHẠM NHÂN VẬT - MẶT ĐẤT
-    this.physics.add.collider(
-        this.player,
-        ground
-    );
+  // Chướng ngại vật 1
+  this.obstacle = this.add.rectangle(800, 460, 50, 80, COLORS.obstacle);
+  this.obstacle.setStrokeStyle(3, 0xD88E6D);
+  this.physics.add.existing(this.obstacle);
+  this.obstacle.body.setAllowGravity(false);
 
-// =========================
-// BỤC GỖ - LEVEL 3
-// =========================
+  // Chướng ngại vật 2
+  this.obstacle2 = this.add.rectangle(1500, 460, 50, 80, COLORS.obstacleTwo);
+  this.obstacle2.setStrokeStyle(3, 0xD9B65F);
+  this.physics.add.existing(this.obstacle2);
+  this.obstacle2.body.setAllowGravity(false);
 
-this.platform = this.add.rectangle(
-    700,
-    400,
-    180,
-    30,
-    0x8B4513
-);
+  // Điểm, level và tốc độ
+  this.score = 0;
+  this.level = 1;
+  this.obstacleSpeed = getObstacleSpeed(this.level);
+  this.obstaclePassed = false;
+  this.obstacle2Passed = false;
 
-this.physics.add.existing(this.platform);
+  this.obstacle.body.setVelocityX(-this.obstacleSpeed);
+  this.obstacle2.body.setVelocityX(-this.obstacleSpeed);
 
-// Bục không bị trọng lực kéo xuống
-this.platform.body.setAllowGravity(false);
-
-// Ban đầu ẩn
-this.platform.setVisible(false);
-this.platform.body.enable = false;
-
-// Va chạm với nhân vật
-this.physics.add.collider(
+  // Va chạm với chướng ngại vật
+  this.physics.add.overlap(
     this.player,
-    this.platform
-);
+    this.obstacle,
+    hitObstacle,
+    null,
+    this
+  );
 
-this.platformActive = false;
-
-this.platformSpeed = 350;
-this.platformActive = false;
-
-
-    // BÀN PHÍM
-    this.cursors =
-        this.input.keyboard.createCursorKeys();
-
-    this.spaceKey =
-        this.input.keyboard.addKey(
-            Phaser.Input.Keyboard.KeyCodes.SPACE
-        );
-
-
-    // =========================
-    // CHƯỚNG NGẠI VẬT
-    // =========================
-
-    this.obstacle = this.add.rectangle(
-    800,
-    460,
-    50,
-    80,
-    0xff0000
-);
-
-this.physics.add.existing(
-    this.obstacle
-);
-
-this.obstacle.body.setAllowGravity(false);
-
-// Tốc độ ban đầu
-this.obstacleSpeed = 300;
-
-this.obstaclePassed = false;
-
-this.obstacle2Passed = false;
-
-this.obstacle.body.setVelocityX(-this.obstacleSpeed);
-
-this.obstacle2 = this.add.rectangle(
-    1500,
-    460,
-    50,
-    80,
-    0xff9900
-);
-
-this.physics.add.existing(
-    this.obstacle2
-);
-
-this.obstacle2.body.setAllowGravity(false);
-
-this.obstacle2.body.setVelocityX(-this.obstacleSpeed);
-
-    // VA CHẠM VỚI CHƯỚNG NGẠI
-    this.physics.add.overlap(
-        this.player,
-        this.obstacle,
-        hitObstacle,
-        null,
-        this
-    );
-    this.physics.add.overlap(
+  this.physics.add.overlap(
     this.player,
     this.obstacle2,
     hitObstacle,
     null,
     this
-);
+  );
 
-    // =========================
-// ĐIỂM
-// =========================
+  // Bảng điểm pastel
+  this.add.rectangle(117, 119, 194, 96, COLORS.panel, 0.94)
+    .setStrokeStyle(2, 0xE6D6E8)
+    .setDepth(2);
 
-this.score = 0;
-this.level = 1;
+  this.add.text(38, 82, "SCORE", {
+    fontSize: "14px",
+    fontStyle: "bold",
+    color: "#806F89",
+    letterSpacing: 1
+  }).setDepth(3);
 
-this.scoreText = this.add.text(
-    20,
-    20,
-    "SCORE: 0",
-    {
-        fontSize: "28px",
-        color: "#ffffff",
-        fontStyle: "bold"
-    }
-);
-this.levelText = this.add.text(
-    20,
-    55,
-    "LEVEL: 1",
-    {
-        fontSize: "24px",
-        color: "#ffffff",
-        fontStyle: "bold"
-    }
-);
+  this.scoreText = this.add.text(38, 99, "0", {
+    fontSize: "27px",
+    fontStyle: "bold",
+    color: "#594C65"
+  }).setDepth(3);
+
+  this.add.text(138, 82, "LEVEL", {
+    fontSize: "14px",
+    fontStyle: "bold",
+    color: "#806F89",
+    letterSpacing: 1
+  }).setDepth(3);
+
+  this.levelText = this.add.text(138, 99, "1", {
+    fontSize: "27px",
+    fontStyle: "bold",
+    color: "#594C65"
+  }).setDepth(3);
+
+  // Điều khiển
+  this.cursors = this.input.keyboard.createCursorKeys();
+  this.spaceKey = this.input.keyboard.addKey(
+    Phaser.Input.Keyboard.KeyCodes.SPACE
+  );
 }
 
+function addScore(scene) {
+  scene.score += 10;
+  scene.scoreText.setText(String(scene.score));
 
-// =========================
-// UPDATE
-// =========================
-function getObstacleSpeed(level) {
+  const newLevel = Math.min(10, Math.floor(scene.score / 100) + 1);
 
-    if (level === 1) {
-        return 300;
-    }
+  if (newLevel !== scene.level) {
+    scene.level = newLevel;
+    scene.levelText.setText(String(scene.level));
 
-    if (level === 2) {
-        return 320;
-    }
-
-    if (level >= 3 && level <= 7) {
-        return 350;
-    }
-
-    if (level === 8) {
-        return 360;
-    }
-
-    if (level === 9) {
-        return 375;
-    }
-
-    if (level === 10) {
-        return 400;
-    }
-
-    return 300;
+    scene.obstacleSpeed = getObstacleSpeed(scene.level);
+    scene.obstacle.body.setVelocityX(-scene.obstacleSpeed);
+    scene.obstacle2.body.setVelocityX(-scene.obstacleSpeed);
+  }
 }
 
 function update() {
+  if (gameOver) return;
 
-    if (gameOver) {
-    return;
-}
+  // Di chuyển trái, phải
+  if (this.cursors.left.isDown) {
+    this.player.body.setVelocityX(-300);
+  } else if (this.cursors.right.isDown) {
+    this.player.body.setVelocityX(300);
+  } else {
+    this.player.body.setVelocityX(0);
+  }
 
-    // DI CHUYỂN TRÁI
-    if (this.cursors.left.isDown) {
-
-        this.player.body.setVelocityX(-300);
-
-    }
-
-    // DI CHUYỂN PHẢI
-    else if (this.cursors.right.isDown) {
-
-        this.player.body.setVelocityX(300);
-
-    }
-
-    // DỪNG
-    else {
-
-        this.player.body.setVelocityX(0);
-
-    }
-
-
-    // NHẢY
-    if (
-        Phaser.Input.Keyboard.JustDown(
-            this.spaceKey
-        )
-        &&
-        this.player.body.blocked.down
-    ) {
-
-        this.player.body.setVelocityY(-650);
-
-    }
-
-
-    // CHƯỚNG NGẠI ĐI RA KHỎI MÀN HÌNH
+  // Nhảy
   if (
-    this.obstacle.x < this.player.x - 25 &&
-    !this.obstaclePassed
-) {
+    Phaser.Input.Keyboard.JustDown(this.spaceKey) &&
+    this.player.body.blocked.down
+  ) {
+    this.player.body.setVelocityY(-650);
+  }
 
+  // Mỗi chướng ngại vật chỉ cộng điểm một lần khi vượt qua
+  if (this.obstacle.x < this.player.x - 25 && !this.obstaclePassed) {
     this.obstaclePassed = true;
+    addScore(this);
+  }
 
-    this.score += 10;
+  if (this.obstacle2.x < this.player.x - 25 && !this.obstacle2Passed) {
+    this.obstacle2Passed = true;
+    addScore(this);
+  }
 
-    this.scoreText.setText(
-        "SCORE: " + this.score
-    );
-
-    const newLevel = Math.min(
-    10,
-    Math.floor(this.score / 100) + 1
-);
-
-if (newLevel !== this.level) {
-
-    this.level = newLevel;
-
-    this.levelText.setText(
-        "LEVEL: " + this.level
-    );
-
-    this.obstacleSpeed =
-        getObstacleSpeed(this.level);
-
-    this.obstacle.body.setVelocityX(
-        -this.obstacleSpeed
-    );
-
-    this.obstacle2.body.setVelocityX(
-        -this.obstacleSpeed
-    );
-}
-    // HIỆN BỤC TỪ LEVEL 3
-// BỤC GỖ CHỈ HOẠT ĐỘNG TỪ LEVEL 3
-
-if (this.level >= 3) {
-
-    // Chưa có bục
-    if (!this.platformActive) {
-
-        // Khi cột 2 đi đến khu vực này
-        if (
-            this.obstacle2.x < 1000 &&
-            this.obstacle2.x > 700
-        ) {
-
-            // Bục xuất hiện phía trước cột
-            this.platform.x =
-                this.obstacle2.x + 250;
-
-            this.platform.y = 400;
-
-            this.platform.setVisible(true);
-            this.platform.body.enable = true;
-
-            // Bục chạy từ phải sang trái
-            this.platform.body.setVelocityX(
-                -this.obstacleSpeed
-            );
-
-            this.platformActive = true;
-        }
-    }
-
-    // Bục ra khỏi màn hình
+  // Bục xuất hiện từ level 3
+  if (this.level >= 3) {
     if (
-        this.platformActive &&
-        this.platform.x < -100
+      !this.platformActive &&
+      this.obstacle2.x < 1000 &&
+      this.obstacle2.x > 700
     ) {
-
-        this.platform.setVisible(false);
-        this.platform.body.enable = false;
-
-        this.platformActive = false;
+      this.platform.x = this.obstacle2.x + 250;
+      this.platform.y = 400;
+      this.platform.setVisible(true);
+      this.platform.body.enable = true;
+      this.platform.body.setVelocityX(-this.obstacleSpeed);
+      this.platformActive = true;
     }
-}
-}
 
-if (this.obstacle.x < -50) {
+    if (this.platformActive && this.platform.x < -100) {
+      this.platform.setVisible(false);
+      this.platform.body.enable = false;
+      this.platformActive = false;
+    }
+  }
 
-    // Vị trí xuất hiện
+  // Đưa chướng ngại vật 1 trở lại màn hình
+  if (this.obstacle.x < -50) {
+    const newHeight = Phaser.Math.Between(50, 120);
+
+    this.obstacle.setSize(50, newHeight);
+    this.obstacle.body.setSize(50, newHeight);
+    this.obstacle.y = 500 - newHeight / 2;
     this.obstacle.x = 1050;
-
-    // Random chiều cao
-    const newHeight =
-        Phaser.Math.Between(50, 120);
-
-    // Thay đổi kích thước
-    this.obstacle.setSize(
-        50,
-        newHeight
-    );
-
-    // Đặt obstacle chạm mặt đất
-    this.obstacle.y =
-        500 - newHeight / 2;
-
     this.obstaclePassed = false;
+    this.obstacle.body.setVelocityX(-this.obstacleSpeed);
+  }
 
-    // Giữ tốc độ hiện tại
-    this.obstacle.body.setVelocityX(
-        -this.obstacleSpeed
-    );
-}
-// OBSTACLE 2 VƯỢT QUA NHÂN VẬT
-if (
-    this.obstacle2.x < this.player.x - 25 &&
-    !this.obstacle2Passed
-) {
+  // Đưa chướng ngại vật 2 trở lại màn hình
+  if (this.obstacle2.x < -50) {
+    const newHeight = Phaser.Math.Between(50, 120);
 
-    this.obstacle2Passed = true;
-
-    this.score += 10;
-
-    this.scoreText.setText(
-        "SCORE: " + this.score
-    );
-
-    this.obstacleSpeed += 30;
-
-    this.obstacle2.body.setVelocityX(
-        -this.obstacleSpeed
-    );
-}
-
-
-// OBSTACLE 2 RA KHỎI MÀN HÌNH
-//OBSTACLE 2 VƯỢT QUA NHÂN VẬT
-if (
-    this.obstacle2.x < this.player.x - 25 &&
-    !this.obstacle2Passed
-) {
-
-    this.obstacle2Passed = true;
-
-    this.score += 10;
-
-    this.scoreText.setText(
-        "SCORE: " + this.score
-    );
-
-    this.obstacleSpeed += 30;
-
-    this.obstacle2.body.setVelocityX(
-        -this.obstacleSpeed
-    );
-}
-
-
-// OBSTACLE 2 RA KHỎI MÀN HÌNH
-if (this.obstacle2.x < -50) {
-
-    this.obstacle2.x =
-    Phaser.Math.Between(1400, 1800);
-
-    const newHeight =
-    Phaser.Math.Between(50, 120);
-
-this.obstacle2.setSize(
-    50,
-    newHeight
-);
-
-this.obstacle2.y =
-    500 - newHeight / 2;
-
+    this.obstacle2.setSize(50, newHeight);
+    this.obstacle2.body.setSize(50, newHeight);
+    this.obstacle2.y = 500 - newHeight / 2;
+    this.obstacle2.x = Phaser.Math.Between(1400, 1800);
     this.obstacle2Passed = false;
-
-    this.obstacle2.body.setVelocityX(
-        -this.obstacleSpeed
-    );
+    this.obstacle2.body.setVelocityX(-this.obstacleSpeed);
+  }
 }
-}
-
-
-// =========================
-// KHI ĐỤNG CHƯỚNG NGẠI
-// =========================
 
 function hitObstacle() {
+  if (gameOver) return;
 
-    if (gameOver) {
-        return;
+  gameOver = true;
+  this.physics.pause();
+  this.player.setAlpha(0.55);
+
+  this.add.rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x594C65, 0.3)
+    .setDepth(10);
+
+  this.add.rectangle(WIDTH / 2, 300, 440, 250, COLORS.panel, 0.98)
+    .setStrokeStyle(3, 0xE6D6E8)
+    .setDepth(11);
+
+  this.add.text(WIDTH / 2, 235, "GAME OVER", {
+    fontFamily: "Trebuchet MS, Arial, sans-serif",
+    fontSize: "44px",
+    fontStyle: "bold",
+    color: "#D87E9A",
+    letterSpacing: 2
+  }).setOrigin(0.5).setDepth(12);
+
+  this.add.text(
+    WIDTH / 2,
+    288,
+    `SCORE: ${this.score}   ·   LEVEL: ${this.level}`,
+    {
+      fontSize: "20px",
+      fontStyle: "bold",
+      color: "#594C65"
     }
+  ).setOrigin(0.5).setDepth(12);
 
-    gameOver = true;
+  const restart = this.add.text(WIDTH / 2, 355, "CHƠI LẠI", {
+    fontFamily: "Trebuchet MS, Arial, sans-serif",
+    fontSize: "22px",
+    fontStyle: "bold",
+    color: "#FFFFFF",
+    backgroundColor: "#A78BC8",
+    padding: { left: 25, right: 25, top: 13, bottom: 13 }
+  }).setOrigin(0.5).setDepth(12).setInteractive({ useHandCursor: true });
 
-    this.add.text(
-        500,
-        250,
-        "GAME OVER",
-        {
-            fontSize: "64px",
-            color: "#ff0000",
-            fontStyle: "bold"
-        }
-    ).setOrigin(0.5);
+  restart.on("pointerover", () => {
+    restart.setStyle({ backgroundColor: "#9275B6" });
+  });
 
-    // Nút CHƠI LẠI
-    const restartText = this.add.text(
-        500,
-        350,
-        "CHƠI LẠI",
-        {
-            fontSize: "32px",
-            color: "#ffffff",
-            backgroundColor: "#333333",
-            padding: {
-                left: 20,
-                right: 20,
-                top: 10,
-                bottom: 10
-            }
-        }
-    ).setOrigin(0.5);
+  restart.on("pointerout", () => {
+    restart.setStyle({ backgroundColor: "#A78BC8" });
+  });
 
-    restartText.setInteractive();
-
-    restartText.on("pointerdown", () => {
-        gameOver = false;
-        this.scene.restart();
-    });
-
-    // Dừng vật lý
-    this.physics.pause();
-
-    this.player.setAlpha(0.5);
+  restart.on("pointerdown", () => {
+    gameOver = false;
+    this.scene.restart();
+  });
 }
-
+</script>
+</body>
+</html>
